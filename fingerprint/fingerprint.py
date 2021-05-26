@@ -29,7 +29,6 @@ class Fingerprint(object):
         base (Optional[int]): base required for computing the rolling hash function. Defaults to 101.
         modulo (Optional[int]): hash values cannot exceed this value. Defaults to sys.maxint.
         window_len (Optional[len]): length of the windows when computing fingerprints. Defaults to 100.
-        kgrams (List(str)): k-grams extracted from the text
         hashes (List(int)): hash values of the k-grams
         fingerprints (List(tuple(int))): selected representative hash values along with their positions.
     """
@@ -79,21 +78,24 @@ class Fingerprint(object):
         self.fingerprints = []
         self.str = ""
 
-    def generate_kgrams(self):
-        for i in range(len(self.str) - self.kgram_len + 1):
-            yield self.str[i:i + self.kgram_len]
+    def generate_kgrams(self, s):
+        for i in range(len(s) - self.kgram_len + 1):
+            yield s[i:i + self.kgram_len]
 
-    def hash_kgrams(self):
-        kgram_iter = self.generate_kgrams()
+    def generate_hashes(self, s):
+        kgram_iter = self.generate_kgrams(s)
         prev_kgram = next(kgram_iter)
         prev_hash = self.normal_hash(prev_kgram)
-        self.hashes.append(prev_hash)
+        yield prev_hash
 
         for cur_kgram in kgram_iter:
             prev_hash = self.rolling_hash(
                 prev_hash, prev_kgram[0], cur_kgram[-1])
-            self.hashes.append(prev_hash)
+            yield prev_hash
             prev_kgram = cur_kgram
+
+    def hash_kgrams(self):
+        self.hashes = list(self.generate_hashes(self.str))
 
     def generate_fingerprints(self):
         windows = (self.hashes[i:i + self.window_len]
